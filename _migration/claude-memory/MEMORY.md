@@ -17,4 +17,5 @@
 - [reference: cloud PC file transfer](reference-cloud-pc-file-transfer.md) — scoți fișiere de pe Cloud PC pe PC principal urcându-le pe uguu.se/tmpfiles via curl
 - [animal-io mobile testing](animal-io-mobile-testing.md) — testare telefon amânată ~1 zi: target Android nativ (APK din Windows), NU iOS (cere Mac); Cristian va avea Android în Romania; Santy = vizual plătit
 - [animal-io level1 creatures](animal-io-level1-creatures.md) — GATA cu zombii: Level 1 temă primate — inamici = maimuțe-cârlig, boss = urangutan masiv (Meshy-6); pipeline FBX→Mixamo
+- [animal-io git backup](animal-io-git-backup.md) — backup complet 30 mai pe branch backup-30may-2026 (proiect + memorie + ghid migrare MCP); Cristian face upgrade la Cloud PC
 - [animal-io unity-mcp pipeline](animal-io-unity-mcp-pipeline.md) — ⚙️ lecții CRITICE: scope=all pt recompile, [DidReloadScripts] (update/delayCall frozen fără focus), editor script pt cod arbitrar, flux textură Meshy→URP + animator clipuri
