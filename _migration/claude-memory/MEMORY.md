@@ -1,0 +1,20 @@
+# Memory Index
+
+- [animal-io setup](animal-io-setup.md) — Faza 0 setup joc animal-io; mașina e Cloud PC Shadow, Git e PortableGit, winget cere UAC manual
+- [animal-io web pivot](animal-io-web-pivot.md) — ⚠️ PIVOT MAJOR 26 mai: jocul = ca THE WOLF (3D REALIST, persoana a treia, lup realist) — abandonat cartoon/2.5D/Brawl/Poki; primul pas = pădure realistă în Unity
+- [user Cristian dev](user-cristian-dev.md) — userul e Tănase Cristian, dev experimentat web/backend, solo founder (CreazaApp, FinRomania); nou doar la game-dev
+- [animal-io core design](animal-io-core-design.md) — diferențiatorul jocului: fiecare animal skill unic + hărți tot mai grele (scară de lumi); idee ținută 2 ani
+- [animal-io meshy](animal-io-meshy.md) — Meshy AI MCP conectat (1100 credite) pentru pipeline assets 3D; confirmă costul înainte de fiecare generare
+- [cristian community strategy](cristian-community-strategy.md) — Cristian crede că distribuția/comunitatea = la fel de importantă ca produsul; build-in-public pornit (LinkedIn/FB); tratează marketingul ca parte din plan
+- [cristian working style](cristian-working-style.md) — „vas de croazieră, nu vâsle": el dirijează în limbaj natural, Claude face munca brută + leverage pe platforme gata; tradu game-dev în termeni web; dă-i mereu harta
+- [platformer direction confirmed](feedback-platformer-direction.md) — pivot 28 mai 2026 spre platformer 3D single-player cu skilluri confirmat de user („asta îmi place mult"); NU propune inamici/luptă
+- [animal-io starter assets](animal-io-starter-assets.md) — sesiune seară 28 mai: pivot la Unity Starter Assets ThirdPerson + Cinemachine + PlatformerExtras custom (Dash/Roll/Crawl/Climb); userul cântărește Invector $40 pentru anim reale
+- [cristian strategic why](cristian-strategic-why.md) — de ce continuă game dev după ani 0 EUR întors; web saturat = moat pentru jocuri bune; NU paria pe „jocul mare", forțează scope mic 2-4 săptămâni
+- [animal-io animation pipeline](animal-io-animation-pipeline.md) — ✅ REZOLVAT 29 mai: pipeline oficial animație Meshy→FBX→Mixamo→Unity Humanoid (dovedit valid=human=true pe arcaș); Mixamo gratis = decizia finală, NU cumpăra Invector pt anims; conține și tot progresul Level 1 (hook, val panouri, combat zombi+arc, secvențiator, credite)
+- [feedback: ask vs build](feedback-ask-vs-build.md) — când Cristian cere PĂREREA, dă opinia și AȘTEAPTĂ; nu construi direct
+- [cristian visual motivation](cristian-visual-motivation.md) — Cristian e motivat VIZUAL; blockout-ul gri îl demoralizează; fă pași vizuali (lumini/texturi/modele) devreme, nu „artă la final"
+- [animal-io audio](animal-io-audio.md) — subsistem audio (GameAudio+ProceduralAudio), 18 sunete reale Sonniss GDC2024 extrase cu ffmpeg portabil în Resources/Audio, hook-uri legate; player_hurt/barrel_roll/fire încă procedurale
+- [reference: cloud PC file transfer](reference-cloud-pc-file-transfer.md) — scoți fișiere de pe Cloud PC pe PC principal urcându-le pe uguu.se/tmpfiles via curl
+- [animal-io mobile testing](animal-io-mobile-testing.md) — testare telefon amânată ~1 zi: target Android nativ (APK din Windows), NU iOS (cere Mac); Cristian va avea Android în Romania; Santy = vizual plătit
+- [animal-io level1 creatures](animal-io-level1-creatures.md) — GATA cu zombii: Level 1 temă primate — inamici = maimuțe-cârlig, boss = urangutan masiv (Meshy-6); pipeline FBX→Mixamo
+- [animal-io unity-mcp pipeline](animal-io-unity-mcp-pipeline.md) — ⚙️ lecții CRITICE: scope=all pt recompile, [DidReloadScripts] (update/delayCall frozen fără focus), editor script pt cod arbitrar, flux textură Meshy→URP + animator clipuri
