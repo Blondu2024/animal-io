@@ -49,3 +49,6 @@ crashlytics-build.properties
 # OS
 .DS_Store
 Thumbs.db
+
+# abandoned realistic-forest pivot - .bin files exceed GitHub 100MB limit
+/Assets/Forest/

@@ -68,6 +68,28 @@ Un `.io` cu animale și progresie: pornești ca **șoricel**, crești mâncând,
 - NU 20 de animale din prima — adăugăm pe parcurs.
 - Cost: placeholder-uri = $0 până la 1d; apoi mic (2D/low-poly), crește cu nr. de animale.
 
+## 9b. PIPELINE DE ASSETS (AI + MCP) — decis
+> Cheia: TOATE uneltele au MCP ⇒ Claude le operează direct. User-ul NU modelează nimic manual. Claude scrie prompturi → generează → curăță în Blender → importă în Unity.
+
+**Combo recomandat (după reviews G2 / comparații 2026):**
+1. **Meshy** (+ Meshy MCP `meshy-dev/meshy-mcp-server`) — PRINCIPAL pt personaje/animale.
+   - Plugin nativ Unity (import 1 click), **auto-rigging + 500+ animații** (șoricel→leu se mișcă din prima), export game-ready FBX/GLB/OBJ cu PBR.
+   - Free tier 100 credite/lună; plătit de la ~$20.
+2. **Blender MCP** (`ahujasid/blender-mcp`, gratis) — HUB de cleanup + asamblare + medii.
+   - Trage asset-uri gratis din Poly Haven + Sketchfab, declanșează generare (Rodin), curăță/asamblează modelele Meshy/Tripo pentru Unity.
+3. **Tripo** (+ Tripo MCP, opțional) — props rapide ieftine (~10s/model, topologie quad curată). Mai slab la animație/integrare decât Meshy.
+
+**Ce unealtă pt ce asset:**
+| Asset | Unealtă | MCP |
+|---|---|---|
+| Personaje/animale (cu animație) | Meshy | ✅ |
+| Props rapide (cutii, obiecte simple) | Tripo | ✅ |
+| Copaci, stânci, mediu | Meshy/Tripo + Blender MCP (Poly Haven gratis) | ✅ |
+| Mașini / hard-surface | Meshy/Tripo (⚠️ cel mai capricios pt AI — uneori pachet din store e mai rapid) | ✅ |
+
+**Onestitate:** AI 3D 2026 e bun dar cere cleanup (Claude îl face în Blender) — nu e 100% perfect din prima; hard-surface (mașini) e partea capricioasă; calitatea depinde mult de cât de specific e promptul.
+Surse: meshy.ai/compare/meshy-vs-tripo · meshy.ai/blog/best-ai-tools-for-3d-game-assets · strayspark.studio (Blender MCP pipeline) · g2.com/products/meshy/reviews
+
 ## 10. MONETIZARE (faza 2)
 - Reclame: interstițial la moarte + reward video pt bonus (Unity Ads/AdMob).
 - IAP: skins animale + skill-uri (Unity IAP).

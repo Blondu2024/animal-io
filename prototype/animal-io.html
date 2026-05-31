@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Animal.io — agar.io clone</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; overflow:hidden; background:#fafafa; font-family:'Segoe UI',system-ui,sans-serif; }
+  #game { display:block; width:100vw; height:100vh; cursor:default; }
+
+  .hud { position:fixed; pointer-events:none; color:#333; }
+  #stats { bottom:14px; left:16px; font-size:13px; line-height:1.6; background:rgba(255,255,255,.7);
+           border:1px solid #ddd; border-radius:8px; padding:6px 12px; }
+  #stats b { font-size:20px; color:#111; }
+  #board { top:14px; right:16px; min-width:180px; background:rgba(255,255,255,.85); border:1px solid #ddd;
+           border-radius:10px; padding:8px 14px; font-size:13px; line-height:1.6; }
+  #board h3 { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#888; margin-bottom:4px; }
+  #board .me { color:#e8424f; font-weight:700; }
+  #ctrls { top:14px; left:16px; font-size:12px; color:#999; line-height:1.7; }
+  #ctrls kbd { background:#eee; border:1px solid #ccc; border-bottom-width:2px; border-radius:4px; padding:1px 6px; color:#555; font-family:inherit; }
+  #mini { position:fixed; bottom:14px; right:16px; border:1px solid #ccc; border-radius:8px; background:rgba(255,255,255,.7); }
+
+  .overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+             background:radial-gradient(circle at 50% 35%, #eef4ff, #dde6f5); color:#222; text-align:center; z-index:10; transition:opacity .3s; }
+  .overlay h1 { font-size:54px; margin-bottom:4px; letter-spacing:-1px; color:#2b3a55; }
+  .overlay h1 span { color:#e8424f; }
+  .overlay p { font-size:15px; color:#5a6678; margin-bottom:18px; max-width:480px; line-height:1.6; }
+  .overlay input { font:inherit; font-size:16px; padding:10px 14px; border:2px solid #c9d4e8; border-radius:10px; text-align:center; margin-bottom:14px; width:220px; outline:none; }
+  .overlay input:focus { border-color:#5b9dff; }
+  .overlay button { font:inherit; font-size:18px; font-weight:700; color:#fff; background:linear-gradient(180deg,#5fb0ff,#3d83ff);
+                    border:none; border-radius:12px; padding:13px 44px; cursor:pointer; box-shadow:0 6px 18px rgba(61,131,255,.35); transition:transform .1s; }
+  .overlay button:hover { transform:translateY(-2px); }
+  .overlay button:active { transform:translateY(1px); }
+  .hide { opacity:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="ctrls" class="hud"><kbd>Mouse</kbd> miști · <kbd>Space</kbd> split · <kbd>W</kbd> ejectează masă</div>
+<div id="stats" class="hud"></div>
+<div id="board" class="hud"><h3>Clasament</h3><div id="boardList"></div></div>
+<canvas id="mini" width="150" height="150"></canvas>
+
+<div id="start" class="overlay">
+  <h1>Animal<span>.io</span></h1>
+  <p>Clonă agar.io. Mănâncă bilele și jucătorii mai mici ca să crești. Împarte-te (Space) ca să prinzi prada — dar fereștete de virușii verzi 🦠 când ești mare.</p>
+  <input id="nameInput" maxlength="14" placeholder="Numele tău" value="Tu">
+  <button id="playBtn">JOACĂ</button>
+</div>
+
+<div id="dead" class="overlay hide">
+  <h1>Game Over</h1>
+  <p id="deadMsg"></p>
+  <button id="againBtn">Din nou</button>
+</div>
+
+<script>
+// ===================== CONFIG =====================
+const W = 6000, H = 6000;
+const FOOD_MAX   = 1000;
+const VIRUS_MAX  = 28;
+const BOT_COUNT  = 25;
+const MIN_MASS   = 22;        // masa minimă a unei celule
+const MAX_CELLS  = 16;        // max celule per jucător
+const SPLIT_MASS = 60;        // minim ca să te poți împărți
+const EJECT_MASS = 16;        // cât pierzi când ejectezi
+const EJECT_BLOB = 13;        // masa unei bile ejectate
+const MERGE_BASE = 12;        // secunde de bază până la recombinare
+
+const NAMES = ['Lupu','Vulpe','Max','Bella','Rocky','Ghost','Bruno','Tiger','Leu','Kermit',
+               'Pingu','Rex','Luna','Simba','Zorro','Nala','Coco','Spike','Milo','Daisy',
+               'Thor','Zeus','Boss','Ninja','Shadow','Viper','Ace','Duke','Pixel','Storm'];
+const COLORS = ['#ff5b5b','#ff9f43','#ffd93b','#6bd968','#3ec6e0','#5b9dff','#9b6bff','#ff6bd6','#2dd4bf','#f97362'];
+
+// ===================== SETUP =====================
+const cv=document.getElementById('game'), ctx=cv.getContext('2d');
+const mini=document.getElementById('mini'), mctx=mini.getContext('2d');
+const DPR=Math.min(window.devicePixelRatio||1,2);
+let VW,VH;
+function resize(){ VW=innerWidth; VH=innerHeight; cv.width=VW*DPR; cv.height=VH*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+addEventListener('resize',resize); resize();
+
+const mouse={x:VW/2,y:VH/2};
+cv.addEventListener('mousemove',e=>{mouse.x=e.clientX;mouse.y=e.clientY;});
+addEventListener('keydown',e=>{
+  if(!running) return;
+  if(e.code==='Space'){ e.preventDefault(); playerSplit(); }
+  else if(e.code==='KeyW'){ e.preventDefault(); playerEject(); }
+});
+
+// ===================== STATE =====================
+let foods=[], viruses=[], ejected=[], players=[], me=null, running=false;
+const cam={x:W/2,y:H/2,scale:1};
+let idSeq=1;
+
+const rand=(a,b)=>a+Math.random()*(b-a);
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const massR=m=>Math.sqrt(m/Math.PI)*10;          // rază din masă
+const dist2=(ax,ay,bx,by)=>{const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy;};
+const speedFor=m=>2.2*Math.pow(m,-0.32)*11+0.3;  // px/frame: mic=rapid, mare=lent (-50%)
+
+// ---- factory ----
+function makeFood(){ return {x:rand(0,W),y:rand(0,H),mass:1,r:rand(5,8),c:`hsl(${rand(0,360)},75%,60%)`}; }
+function makeVirus(){ return {x:rand(100,W-100),y:rand(100,H-100),mass:120}; }
+function makeCell(owner,x,y,mass){ return {owner,x,y,mass,bx:0,by:0,mergeT:0,id:idSeq++}; }
+
+function makePlayer(isMe,name){
+  const col=pick(COLORS);
+  const p={ id:idSeq++, isMe, name:name||pick(NAMES), color:col, cells:[], target:{x:0,y:0}, retarget:0, dead:false };
+  const x=rand(300,W-300), y=rand(300,H-300);
+  p.cells.push(makeCell(p,x,y,isMe?MIN_MASS+8:rand(MIN_MASS,rand(MIN_MASS,400))));
+  return p;
+}
+
+function totalMass(p){ let m=0; for(const c of p.cells) m+=c.mass; return m; }
+function centroid(p){ let x=0,y=0,m=0; for(const c of p.cells){x+=c.x*c.mass;y+=c.y*c.mass;m+=c.mass;} return m?{x:x/m,y:y/m}:{x:cam.x,y:cam.y}; }
+
+// ===================== GAME FLOW =====================
+function startGame(){
+  foods=[]; viruses=[]; ejected=[]; players=[];
+  for(let i=0;i<FOOD_MAX;i++) foods.push(makeFood());
+  for(let i=0;i<VIRUS_MAX;i++) viruses.push(makeVirus());
+  me=makePlayer(true, document.getElementById('nameInput').value.trim()||'Tu');
+  me.cells[0].x=W/2; me.cells[0].y=H/2;
+  players.push(me);
+  for(let i=0;i<BOT_COUNT;i++) players.push(makePlayer(false));
+  const c=centroid(me); cam.x=c.x; cam.y=c.y;
+  running=true;
+  document.getElementById('start').classList.add('hide');
+  document.getElementById('dead').classList.add('hide');
+}
+function endGame(killer){
+  running=false;
+  document.getElementById('deadMsg').textContent=
+    `Ai atins masa ${Math.floor(me._peak||0)}. ${killer} te-a mâncat.`;
+  document.getElementById('dead').classList.remove('hide');
+}
+
+// ===================== PLAYER ACTIONS =====================
+function worldMouse(){ return { x: cam.x + (mouse.x-VW/2)/cam.scale, y: cam.y + (mouse.y-VH/2)/cam.scale }; }
+
+function splitCell(p,c,tx,ty){
+  if(p.cells.length>=MAX_CELLS || c.mass<SPLIT_MASS) return false;
+  const half=c.mass/2; c.mass=half;
+  const dx=tx-c.x, dy=ty-c.y, d=Math.hypot(dx,dy)||1;
+  const nc=makeCell(p,c.x,c.y,half);
+  const boost=Math.max(380, massR(half)*22);
+  nc.bx=dx/d*boost; nc.by=dy/d*boost;
+  nc.mergeT=c.mergeT=MERGE_BASE+half*0.02;
+  p.cells.push(nc);
+  return true;
+}
+function playerSplit(){
+  const t=worldMouse();
+  const snapshot=[...me.cells];
+  for(const c of snapshot) splitCell(me,c,t.x,t.y);
+}
+function playerEject(){
+  const t=worldMouse();
+  for(const c of me.cells){
+    if(c.mass<MIN_MASS+EJECT_MASS+5) continue;
+    c.mass-=EJECT_MASS;
+    const dx=t.x-c.x, dy=t.y-c.y, d=Math.hypot(dx,dy)||1;
+    const r=massR(c.mass);
+    ejected.push({ x:c.x+dx/d*r, y:c.y+dy/d*r, vx:dx/d*32, vy:dy/d*32, mass:EJECT_BLOB, c:me.color });
+  }
+}
+
+// ===================== AI =====================
+function botBrain(p,dt){
+  p.retarget-=dt;
+  const c0=p.cells[0]; if(!c0) return;
+  const myMass=totalMass(p);
+  let threat=null,prey=null,tD=1e9,pD=1e9, virusNear=null,vD=1e9;
+  for(const o of players){
+    if(o===p||o.dead) continue;
+    for(const oc of o.cells){
+      const d=dist2(c0.x,c0.y,oc.x,oc.y);
+      if(d>1500*1500) continue;
+      if(oc.mass>c0.mass*1.25){ if(d<tD){tD=d;threat=oc;} }
+      else if(c0.mass>oc.mass*1.25){ if(d<pD){pD=d;prey=oc;} }
+    }
+  }
+  if(myMass>180){ for(const v of viruses){ const d=dist2(c0.x,c0.y,v.x,v.y); if(d<vD){vD=d;virusNear=v;} } }
+
+  if(threat && tD<480*480){
+    p.target={x:c0.x*2-threat.x,y:c0.y*2-threat.y};
+  } else if(virusNear && vD<240*240 && myMass>180){
+    p.target={x:c0.x*2-virusNear.x,y:c0.y*2-virusNear.y};
+  } else if(prey && pD<700*700){
+    p.target={x:prey.x,y:prey.y};
+    if(c0.mass>prey.mass*2.4 && pD<300*300 && p.cells.length<4 && Math.random()<0.02)
+      splitCell(p,c0,prey.x,prey.y);
+  } else if(!p.target || p.retarget<=0 || dist2(c0.x,c0.y,p.target.x,p.target.y)<70*70){
+    let best=null,bd=1e9;
+    for(let i=0;i<50;i++){ const f=pick(foods); if(!f)continue; const d=dist2(c0.x,c0.y,f.x,f.y); if(d<bd){bd=d;best=f;} }
+    p.target=best?{x:best.x,y:best.y}:{x:rand(0,W),y:rand(0,H)};
+    p.retarget=rand(2,5);
+  }
+}
+
+// ===================== PHYSICS / UPDATE =====================
+function moveCells(p,dt){
+  const t = p.isMe ? worldMouse() : p.target;
+  for(const c of p.cells){
+    const dx=t.x-c.x, dy=t.y-c.y, d=Math.hypot(dx,dy)||1;
+    const sp=speedFor(c.mass);
+    const f=Math.min(1, d/ (massR(c.mass)+5) );   // încetinește lângă cursor
+    c.x += dx/d*sp*f;
+    c.y += dy/d*sp*f;
+    // boost (split / ejectare)
+    c.x += c.bx*dt; c.y += c.by*dt;
+    c.bx*=0.86; c.by*=0.86;
+    if(Math.abs(c.bx)<2) c.bx=0; if(Math.abs(c.by)<2) c.by=0;
+    // limite lume
+    const r=massR(c.mass);
+    c.x=Math.max(r,Math.min(W-r,c.x)); c.y=Math.max(r,Math.min(H-r,c.y));
+    if(c.mergeT>0) c.mergeT-=dt;
+  }
+}
+
+// coliziune între celulele aceluiași jucător (se resping până se pot recombina)
+function selfCollide(p){
+  const cs=p.cells;
+  for(let i=0;i<cs.length;i++) for(let j=i+1;j<cs.length;j++){
+    const a=cs[i],b=cs[j], ra=massR(a.mass),rb=massR(b.mass);
+    const dx=b.x-a.x,dy=b.y-a.y, d=Math.hypot(dx,dy)||0.01, overlap=ra+rb-d;
+    if(overlap>0){
+      if(a.mergeT<=0 && b.mergeT<=0){
+        // recombinare
+        a.mass+=b.mass; cs.splice(j,1); j--;
+      } else {
+        const push=overlap/2/d;
+        a.x-=dx*push; a.y-=dy*push; b.x+=dx*push; b.y+=dy*push;
+      }
+    }
+  }
+}
+
+function update(dt){
+  for(const p of players){ if(p.dead) continue; if(!p.isMe) botBrain(p,dt); moveCells(p,dt); selfCollide(p); }
+
+  // ejected mass physics
+  for(const e of ejected){ e.x+=e.vx; e.y+=e.vy; e.vx*=0.9; e.vy*=0.9; e.x=Math.max(0,Math.min(W,e.x)); e.y=Math.max(0,Math.min(H,e.y)); }
+
+  // ---- eat food + ejected ----
+  for(const p of players){ if(p.dead) continue;
+    for(const c of p.cells){
+      const r=massR(c.mass);
+      for(let i=foods.length-1;i>=0;i--){ const f=foods[i];
+        if(dist2(c.x,c.y,f.x,f.y)<r*r){ c.mass+=f.mass*2; foods.splice(i,1); }
+      }
+      for(let i=ejected.length-1;i>=0;i--){ const e=ejected[i];
+        if(Math.hypot(e.vx,e.vy)>6) continue; // încă zboară
+        if(dist2(c.x,c.y,e.x,e.y)<r*r){ c.mass+=e.mass; ejected.splice(i,1); }
+      }
+    }
+  }
+  while(foods.length<FOOD_MAX) foods.push(makeFood());
+
+  // ---- virus collision (pop) ----
+  for(const p of players){ if(p.dead) continue;
+    for(const c of [...p.cells]){
+      for(let vi=viruses.length-1;vi>=0;vi--){ const v=viruses[vi];
+        const r=massR(c.mass);
+        if(c.mass>v.mass*1.15 && dist2(c.x,c.y,v.x,v.y)<r*r*0.6){
+          popOnVirus(p,c,v); viruses.splice(vi,1); viruses.push(makeVirus());
+        }
+      }
+    }
+  }
+
+  // ---- eat other players' cells ----
+  for(const a of players){ if(a.dead) continue;
+    for(const ac of a.cells){
+      const ra=massR(ac.mass);
+      for(const b of players){ if(b===a||b.dead) continue;
+        for(let k=b.cells.length-1;k>=0;k--){ const bc=b.cells[k];
+          if(ac.mass>bc.mass*1.25 && dist2(ac.x,ac.y,bc.x,bc.y)<ra*ra*0.5){
+            ac.mass+=bc.mass; b.cells.splice(k,1);
+          }
+        }
+      }
+    }
+  }
+
+  // ---- deaths ----
+  for(const p of players){ if(p.dead) continue;
+    if(p.cells.length===0){
+      p.dead=true;
+      if(p.isMe){ endGame('Cineva'); }
+    }
+  }
+  // respawn bots
+  for(let i=players.length-1;i>=0;i--){ if(players[i].dead && !players[i].isMe) players.splice(i,1); }
+  while(players.length<BOT_COUNT+1) players.push(makePlayer(false));
+
+  // ---- camera ----
+  if(!me.dead && me.cells.length){
+    const c=centroid(me); cam.x+=(c.x-cam.x)*0.15; cam.y+=(c.y-cam.y)*0.15;
+    const tm=totalMass(me); me._peak=Math.max(me._peak||0,tm);
+    const tScale=Math.min(1.0, Math.pow(64/ (massR(tm)+40), 0.45))*1.6;
+    cam.scale+=(tScale-cam.scale)*0.06;
+  }
+}
+
+function popOnVirus(p,c,v){
+  c.mass+=v.mass*0.5;
+  const pieces=Math.min(MAX_CELLS-p.cells.length, 7);
+  if(pieces<=0) return;
+  const each=c.mass/(pieces+1); c.mass=each;
+  for(let i=0;i<pieces;i++){
+    const a=rand(0,Math.PI*2);
+    const nc=makeCell(p,c.x,c.y,each);
+    const boost=rand(300,520);
+    nc.bx=Math.cos(a)*boost; nc.by=Math.sin(a)*boost;
+    nc.mergeT=c.mergeT=MERGE_BASE+each*0.02;
+    p.cells.push(nc);
+  }
+}
+
+// ===================== RENDER =====================
+function draw(){
+  ctx.fillStyle='#f7f9fc'; ctx.fillRect(0,0,VW,VH);
+  ctx.save();
+  ctx.translate(VW/2,VH/2); ctx.scale(cam.scale,cam.scale); ctx.translate(-cam.x,-cam.y);
+
+  // grid
+  ctx.strokeStyle='#e3e8f0'; ctx.lineWidth=1;
+  const g=50, x0=Math.floor((cam.x-VW)/g)*g, y0=Math.floor((cam.y-VH)/g)*g;
+  const x1=cam.x+VW/cam.scale, y1=cam.y+VH/cam.scale;
+  ctx.beginPath();
+  for(let x=x0;x<x1;x+=g){ ctx.moveTo(x,y0); ctx.lineTo(x,y1); }
+  for(let y=y0;y<y1;y+=g){ ctx.moveTo(x0,y); ctx.lineTo(x1,y); }
+  ctx.stroke();
+  // border
+  ctx.strokeStyle='#c8d2e0'; ctx.lineWidth=6; ctx.strokeRect(0,0,W,H);
+
+  // food
+  for(const f of foods){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,f.r,0,7); ctx.fill(); }
+  // ejected
+  for(const e of ejected){ ctx.fillStyle=e.c; ctx.beginPath(); ctx.arc(e.x,e.y,massR(e.mass),0,7); ctx.fill(); }
+
+  // cells (toate, sortate mic->mare)
+  const all=[];
+  for(const p of players){ if(p.dead) continue; for(const c of p.cells) all.push({c,p}); }
+  all.sort((A,B)=>A.c.mass-B.c.mass);
+  for(const {c,p} of all){
+    const r=massR(c.mass);
+    ctx.beginPath(); ctx.fillStyle=p.color; ctx.arc(c.x,c.y,r,0,7); ctx.fill();
+    ctx.lineWidth=Math.max(2,r*0.05); ctx.strokeStyle='rgba(0,0,0,.12)'; ctx.stroke();
+    if(r>16){
+      ctx.fillStyle='rgba(255,255,255,.95)'; ctx.font=`bold ${Math.max(12,r*0.42)}px Segoe UI`;
+      ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.25)';
+      ctx.strokeText(p.name,c.x,c.y); ctx.fillText(p.name,c.x,c.y);
+    }
+  }
+
+  // viruses (verzi, spiky) — desenate deasupra
+  for(const v of viruses) drawVirus(v);
+
+  ctx.restore();
+  drawHUD(); drawMini();
+}
+
+function drawVirus(v){
+  const r=massR(v.mass), spikes=18;
+  ctx.beginPath();
+  for(let i=0;i<spikes*2;i++){
+    const ang=Math.PI*i/spikes, rad=(i%2===0)?r:r*0.86;
+    const x=v.x+Math.cos(ang)*rad, y=v.y+Math.sin(ang)*rad;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle='rgba(80,210,90,.55)'; ctx.fill();
+  ctx.lineWidth=4; ctx.strokeStyle='#34b13f'; ctx.stroke();
+}
+
+function drawHUD(){
+  if(!me) return;
+  document.getElementById('stats').innerHTML = me.dead ? 'Mort' :
+    `Masă <b>${Math.floor(totalMass(me))}</b> &nbsp; · &nbsp; celule: ${me.cells.length}`;
+  const ranked=players.filter(p=>!p.dead).map(p=>({p,m:totalMass(p)})).sort((a,b)=>b.m-a.m).slice(0,10);
+  document.getElementById('boardList').innerHTML=ranked.map((o,i)=>
+    `<div class="${o.p===me?'me':''}">${i+1}. ${o.p.name} — ${Math.floor(o.m)}</div>`).join('');
+}
+
+function drawMini(){
+  mctx.clearRect(0,0,150,150);
+  const sx=150/W, sy=150/H;
+  mctx.strokeStyle='#ccc'; mctx.strokeRect(0,0,150,150);
+  for(const v of viruses){ mctx.fillStyle='#34b13f'; mctx.fillRect(v.x*sx-1,v.y*sy-1,2,2); }
+  for(const p of players){ if(p.dead||!p.cells.length) continue;
+    const c=centroid(p); mctx.fillStyle=p===me?'#e8424f':p.color;
+    mctx.beginPath(); mctx.arc(c.x*sx,c.y*sy,p===me?3:2,0,7); mctx.fill();
+  }
+}
+
+// ===================== LOOP =====================
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(running){ update(dt); draw(); }
+  requestAnimationFrame(loop);
+}
+document.getElementById('playBtn').onclick=startGame;
+document.getElementById('againBtn').onclick=startGame;
+document.getElementById('nameInput').addEventListener('keydown',e=>{ if(e.key==='Enter') startGame(); });
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
